@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="hi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sathi Books</title>
+<style>
+:root{--tx:#0f172a;--mu:#475569;--gl:rgba(255,255,255,.55);--gb:rgba(255,255,255,.7);--ac:#2563eb;--rd:#dc2626;--bg1:#c7d2fe;--bg2:#fbcfe8;--bg3:#a5f3fc}
+@media (prefers-color-scheme:dark){:root{--tx:#f1f5f9;--mu:#a9b4c6;--gl:rgba(30,41,59,.5);--gb:rgba(255,255,255,.14);--ac:#7aa2ff;--rd:#f87171;--bg1:#1e1b4b;--bg2:#4a1d4a;--bg3:#0c4a5a}}
+*{box-sizing:border-box}html,body{margin:0;color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{min-height:100vh;background:linear-gradient(135deg,var(--bg1),var(--bg2) 55%,var(--bg3)) fixed}
+#app{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 95px)}
+.g{background:var(--gl);border:1px solid var(--gb);border-radius:18px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 30px rgba(0,0,0,.08);padding:12px 14px;margin:10px 0}
+h1{font-size:22px;margin:4px 0}.mu{color:var(--mu);font-size:13px}
+input,textarea{width:100%;font:inherit;color:var(--tx);background:var(--gl);border:1px solid var(--gb);border-radius:12px;padding:11px;margin:5px 0}
+button{font:inherit;color:var(--tx);background:var(--gl);border:1px solid var(--gb);border-radius:12px;padding:9px 13px;cursor:pointer}
+button.p{background:var(--ac);color:#fff;border:0;font-weight:600}button.d{color:var(--rd)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cov{width:50px;height:68px;border-radius:8px;flex:none;object-fit:cover;background:var(--ac);color:#fff;display:grid;place-items:center;font-size:22px}
+.blue{display:inline-block;background:#2563eb;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;text-align:center;line-height:16px}
+.tag{font-size:11px;background:var(--gb);border-radius:7px;padding:2px 7px}
+.st{display:grid;grid-template-columns:1fr 1fr;gap:8px}.st .g{margin:0;text-align:center}.st b{font-size:26px;display:block}
+nav{position:fixed;left:0;right:0;bottom:0;padding:8px 14px calc(env(safe-area-inset-bottom,0px) + 8px)}
+nav div{max-width:560px;margin:0 auto;display:flex;gap:4px;padding:6px}nav button{flex:1;border:0;background:none;font-size:12px;padding:6px 2px}nav button.on{background:var(--gb);font-weight:700}
+iframe{width:100%;height:75vh;border:0;border-radius:14px;background:#fff}
+</style></head><body><div id="app">Loading...</div><div id="nv"></div>
+<script>setTimeout(function(){var a=document.getElementById("app");if(a&&a.textContent.trim()=="Loading..."){a.innerHTML='<div style="padding:20px"><h1>App load nahi hua</h1><p>Is file ko seedha phone se mat kholo. Ise GitHub Pages ya Firebase Hosting ke https link se kholo. Agar link se bhi yahi aaye, to internet check karo aur Firebase config dobara dekho.</p></div>'}},7000)</script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import{getAuth,onAuthStateChanged,signInAnonymously,signOut}from"https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import{getFirestore,doc,getDoc,setDoc,addDoc,updateDoc,deleteDoc,collection,getDocs,query,where,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+/* ====== YAHAN APNI FIREBASE CONFIG DAALO ====== */
+const firebaseConfig={apiKey:"AIzaSyAbdw_AUpZqMRVxHpzJ0pleVQ6faROFd4g",authDomain:"sathibooks.firebaseapp.com",projectId:"sathibooks"};
+const ADMIN_EMAIL="tumhara@email.com";
+/* =============================================== */
+const auth=getAuth(initializeApp(firebaseConfig)),db=getFirestore(auth.app);
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let me=null,P=null,tab="home",sub="dash",q="",cur=null,books=[],reads={},users=[],allReads=[];
+const did=v=>{const m=String(v||"").match(/\/d\/([\w-]+)|[?&]id=([\w-]+)/);return m?(m[1]||m[2]):null};
+const cover=b=>{if(!b.coverUrl)return"";const i=did(b.coverUrl);return i?`https://drive.google.com/thumbnail?id=${i}&sz=w400`:b.coverUrl};
+const isA=()=>P&&P.role=="admin";
+let creating=false;
+onAuthStateChanged(auth,async u=>{me=u;if(!u){P=null;return draw()}if(creating)return;
+try{const x=await getDoc(doc(db,"users",u.uid));P=x.exists()?x.data():null;if(P)await load()}catch(e){console.error(e)}draw()});
+async function load(){books=(await getDocs(isA()?collection(db,"books"):query(collection(db,"books"),where("status","==","approved")))).docs.map(d=>({id:d.id,...d.data()})).sort((x,y)=>(y.createdAt?.seconds||0)-(x.createdAt?.seconds||0));
+reads={};(await getDocs(query(collection(db,"reads"),where("uid","==",me.uid)))).forEach(d=>reads[d.data().bookId]=d.data().progress);
+if(isA()){users=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()}));allReads=(await getDocs(collection(db,"reads"))).docs.map(d=>d.data())}}
+function authUI(m=""){$("nv").innerHTML="";$("app").innerHTML=`<div class="g" style="margin-top:12vh;text-align:center"><div style="font-size:44px">📚</div><h1>Sathi Books</h1><div class="mu">Apna naam aur phone number daalo aur turant padhna shuru karo.</div><input id="nm" placeholder="Aapka naam"><input id="ph" type="tel" inputmode="numeric" placeholder="Phone number (10 digit)"><div style="color:var(--rd);font-size:13px">${esc(m)}</div><button class="p" style="width:100%;margin-top:6px" id="go">Shuru karo</button><div class="mu" style="margin-top:8px">Admin aapka account 7-8 ghante me verify karega. Tab tak aap Guest ki tarah padh sakte ho.</div></div>`;
+$("go").onclick=async()=>{const n=$("nm").value.trim(),p=$("ph").value.replace(/\D/g,"").replace(/^91(?=\d{10}$)/,"");if(n.length<2)return authUI("Naam daalo");if(!/^\d{10}$/.test(p))return authUI("Sahi 10 digit phone number daalo");
+creating=true;try{const u=(await signInAnonymously(auth)).user;await setDoc(doc(db,"users",u.uid),{name:n,phone:p,role:"user",verified:false,createdAt:serverTimestamp()});me=u;P=(await getDoc(doc(db,"users",u.uid))).data();await load()}catch(e){creating=false;return authUI("Error: "+(e.code||e.message))}creating=false;draw()}}
+function nav(){const t=[["home","🏠","Home"],["lib","📖","Library"],["send","✉️","Kitaab bhejo"],["me","👤","Profile"]];if(isA())t.push(["adm","🛡️","Admin"]);$("nv").innerHTML=`<nav><div class="g">${t.map(([k,i,l])=>`<button class="${tab==k?'on':''}" data-t="${k}">${i}<br>${l}</button>`).join("")}</div></nav>`;
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;cur=null;draw()})}
+const card=b=>`<div class="g row bk" data-id="${b.id}"><div style="display:flex;gap:10px;align-items:center">${cover(b)?`<img class="cov" src="${esc(cover(b))}" alt="">`:`<div class="cov">${esc((b.title||"?")[0])}</div>`}<div><b>${esc(b.title)}</b> ${b.verified?'<span class="blue">✓</span>':''}<div class="mu">${esc(b.author)} • <span class="tag">${esc(b.genre)}</span></div>${reads[b.id]?`<div class="mu">${reads[b.id]==100?"✔ Padh li":"Padh rahe ho"}</div>`:""}</div></div></div>`;
+const bind=()=>document.querySelectorAll(".bk").forEach(e=>e.onclick=()=>openB(e.dataset.id));
+function draw(){if(!me||!P)return authUI();nav();const a=$("app");
+if(cur){const b=books.find(x=>x.id==cur);a.innerHTML=`<div class="row"><button id="bk">← Wapas</button><button class="p" id="dn">✔ Padh liya</button></div><div class="g"><h1>${esc(b.title)} ${b.verified?'<span class="blue">✓</span>':''}</h1><div class="mu">${esc(b.author)}</div>${b.description?`<p>${esc(b.description)}</p>`:""}</div><iframe src="https://drive.google.com/file/d/${esc(b.pdfId)}/preview"></iframe>`;
+$("bk").onclick=()=>{cur=null;draw()};$("dn").onclick=async()=>{await setR(b.id,100);cur=null;tab="lib";draw()};return}
+if(tab=="home"){a.innerHTML=`<h1>Namaste ${esc(P.name)} 👋</h1>${P.verified?"":'<div class="g mu">👤 Aap abhi <b>Guest</b> ho. Admin verification me 7-8 ghante lag sakte hain. Tab tak sab kitaabein padh sakte ho.</div>'}<input id="sq" placeholder="🔍 Kitaab, writer ya genre search karo" value="${esc(q)}"><div id="ls"></div>`;$("sq").oninput=e=>{q=e.target.value;lst()};lst()}
+else if(tab=="lib"){const l=books.filter(b=>reads[b.id]);a.innerHTML=`<h1>Meri Library</h1>${l.map(card).join("")||'<div class="g mu">Abhi kuch nahi padha.</div>'}`;bind()}
+else if(tab=="send"){const s=encodeURIComponent("Kitaab upload request - Sathi Books"),b=encodeURIComponent("Naam:\nKitaab ka naam:\nGenre:\nShort description:\nPDF ka Google Drive link (Anyone with link):\nCover photo ka link:\n");a.innerHTML=`<h1>Apni kitaab bhejo</h1><div class="g">Abhi sirf admin kitaab upload karte hain. Apni kitaab ki detail email se bhejo, hum review karke app me daal denge aur achhi kitaab par blue ✓ tag milega.<br><br><a href="mailto:${ADMIN_EMAIL}?subject=${s}&body=${b}"><button class="p" style="width:100%">✉️ Email bhejo</button></a></div>`}
+else if(tab=="me"){a.innerHTML=`<h1>Profile</h1><div class="g"><b>${esc(P.name)} ${P.verified?'<span class="blue">✓</span>':''}</b><div class="mu">📞 ${esc(P.phone)}</div><div class="mu">${P.verified?"Verified account":"Guest - verification baaki"}</div><div class="mu">Khuli kitaabein: ${Object.keys(reads).length}</div></div><button class="d" style="width:100%" id="lo">Logout</button>`;$("lo").onclick=()=>{if(confirm("Logout karne par ye account is device se hat jayega. Pakka?"))signOut(auth)}}
+else adm(a)}
+function lst(){const k=q.toLowerCase();$("ls").innerHTML=books.filter(b=>((b.title||"")+(b.author||"")+(b.genre||"")).toLowerCase().includes(k)).map(card).join("")||'<div class="g mu">Kuch nahi mila.</div>';bind()}
+async function setR(id,p){reads[id]=p;await setDoc(doc(db,"reads",me.uid+"_"+id),{uid:me.uid,bookId:id,progress:p,updatedAt:serverTimestamp()})}
+function openB(id){cur=id;if(!reads[id])setR(id,5);draw();scrollTo(0,0)}
+const rc=id=>allReads.filter(r=>r.bookId==id).length;
+function adm(a){const tb=[["dash","📊"],["add","➕ Add"],["bk","📚 Books"],["us","👥 Users"]];let h=`<h1>🛡️ Admin</h1><div class="g row" style="gap:4px">${tb.map(([k,l])=>`<button class="${sub==k?'p':''}" style="flex:1;padding:9px 2px" data-s="${k}">${l}</button>`).join("")}</div>`;
+if(sub=="dash"){const top=[...books].sort((x,y)=>rc(y.id)-rc(x.id)).slice(0,3);h+=`<div class="st"><div class="g"><b>${books.length}</b><span class="mu">Books</span></div><div class="g"><b>${users.length}</b><span class="mu">Users</span></div><div class="g"><b>${allReads.length}</b><span class="mu">Total reads</span></div><div class="g"><b>${users.filter(u=>!u.verified).length}</b><span class="mu">Verify baaki</span></div></div><div class="g"><b>🔥 Sabse zyada padhi gayi</b>${top.map(b=>`<div class="row mu" style="margin-top:6px"><span>${esc(b.title)}</span><span>${rc(b.id)}</span></div>`).join("")}</div>`}
+if(sub=="add")h+=`<div class="g"><b>Nayi kitaab</b><input id="t" placeholder="Kitaab ka naam"><input id="au" placeholder="Writer"><input id="ge" placeholder="Genre"><textarea id="de" placeholder="Short description" style="min-height:70px"></textarea><input id="pd" placeholder="PDF ka Google Drive link"><input id="cv" placeholder="Cover photo link (optional)"><div class="mu">Drive file ko "Anyone with the link - Viewer" karna zaroori hai.</div><button class="p" style="width:100%;margin-top:8px" id="ab">Publish (blue ✓)</button><div id="mg" style="margin-top:6px;color:var(--rd)"></div></div>`;
+if(sub=="bk")h+=books.map(b=>`<div class="g"><b>${esc(b.title)}</b> ${b.verified?'<span class="blue">✓</span>':''}<div class="mu">${esc(b.author)} • ${rc(b.id)} reads</div><div class="row" style="margin-top:8px"><button data-tg="${b.id}">${b.verified?"Blue tag hatao":"Blue tag do ✓"}</button><button class="d" data-dl="${b.id}">Delete</button></div></div>`).join("")||'<div class="g mu">Koi kitaab nahi.</div>';
+if(sub=="us")h+=users.map(u=>({u,n:allReads.filter(r=>r.uid==u.id)})).sort((x,y)=>((x.u.verified?1:0)-(y.u.verified?1:0))||y.n.length-x.n.length).map(({u,n})=>`<div class="g"><div class="row"><b>${esc(u.name||u.email||"?")} ${u.verified?'<span class="blue">✓</span>':''}</b><span class="tag">${esc(u.role)}</span></div><div class="mu">📞 ${esc(u.phone||"-")} • ${n.length} books ${u.verified?"":"• ⏳ Guest"}</div><div class="mu">${n.map(r=>esc(books.find(b=>b.id==r.bookId)?.title||"?")).join(", ")||"Abhi kuch nahi padha"}</div>${u.phone?`<div class="row" style="margin-top:8px;gap:6px"><a href="tel:${esc(u.phone)}"><button>📞 Call</button></a><a href="https://wa.me/91${esc(u.phone)}" target="_blank"><button>💬 WhatsApp</button></a><button class="${u.verified?'d':'p'}" data-vf="${u.id}">${u.verified?"Verify hatao":"Verify karo ✓"}</button></div>`:""}</div>`).join("");
+a.innerHTML=h;
+a.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{sub=b.dataset.s;draw()});
+a.querySelectorAll("[data-tg]").forEach(b=>b.onclick=async()=>{const k=books.find(x=>x.id==b.dataset.tg);await updateDoc(doc(db,"books",k.id),{verified:!k.verified});await load();draw()});
+a.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{if(!confirm("Pakka delete?"))return;await deleteDoc(doc(db,"books",b.dataset.dl));await load();draw()});
+a.querySelectorAll("[data-vf]").forEach(b=>b.onclick=async()=>{const k=users.find(x=>x.id==b.dataset.vf);await updateDoc(doc(db,"users",k.id),{verified:!k.verified});await load();draw()});
+if($("ab"))$("ab").onclick=async()=>{const pid=did($("pd").value);if(!$("t").value.trim()||!pid)return $("mg").textContent="Naam aur sahi Drive PDF link zaroori hai";
+try{await addDoc(collection(db,"books"),{title:$("t").value.trim(),author:$("au").value.trim(),genre:$("ge").value.trim()||"Anya",description:$("de").value.trim(),pdfId:pid,coverUrl:$("cv").value.trim(),verified:true,official:true,status:"approved",ownerUid:me.uid,createdAt:serverTimestamp()});await load();sub="bk";draw()}catch(e){$("mg").textContent="Error: "+e.code}}}
+</script></body></html>
